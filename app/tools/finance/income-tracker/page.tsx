@@ -13,6 +13,7 @@ import { StatsGrid } from '@/components/ui/stats-grid';
 import { ToolLayout } from '@/components/ui/tool-layout';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { generateId } from '@/lib/id';
+import { toLocalDateString } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface Transaction {
@@ -41,13 +42,13 @@ export default function IncomeTrackerPage() {
     amount: 0,
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: toLocalDateString()
   });
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const addTransaction = () => {
-    if (!newTransaction.amount || !newTransaction.category || !newTransaction.description) {
-      toast.error('Please fill in all fields');
+    if (!newTransaction.amount || newTransaction.amount <= 0 || !newTransaction.category || !newTransaction.description) {
+      toast.error('Please fill in all fields with a valid amount');
       return;
     }
 
@@ -66,7 +67,7 @@ export default function IncomeTrackerPage() {
       amount: 0,
       category: '',
       description: '',
-      date: new Date().toISOString().split('T')[0]
+      date: toLocalDateString()
     });
     setIsAddingNew(false);
     toast.success('Transaction added successfully!');
@@ -105,19 +106,20 @@ export default function IncomeTrackerPage() {
   };
 
   const getSpendingTrend = () => {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
-    
+    const [year, month] = filterMonth.split('-').map(Number);
+    const previousMonthDate = new Date(year, month - 2, 1);
+    const previousMonth = `${previousMonthDate.getFullYear()}-${(previousMonthDate.getMonth() + 1).toString().padStart(2, '0')}`;
+
     const currentExpenses = transactions
-      .filter(t => t.date.slice(0, 7) === currentMonth && t.type === 'expense')
+      .filter(t => t.date.slice(0, 7) === filterMonth && t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const lastExpenses = transactions
-      .filter(t => t.date.slice(0, 7) === lastMonth && t.type === 'expense')
+    const previousExpenses = transactions
+      .filter(t => t.date.slice(0, 7) === previousMonth && t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
-    
-    if (lastExpenses === 0) return '0';
-    return ((currentExpenses - lastExpenses) / lastExpenses * 100).toFixed(1);
+
+    if (previousExpenses === 0) return '0';
+    return ((currentExpenses - previousExpenses) / previousExpenses * 100).toFixed(1);
   };
 
   const stats = getMonthlyStats();
@@ -143,8 +145,9 @@ export default function IncomeTrackerPage() {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <div className="space-y-1">
-              <Label className="text-xs">Filter by Month</Label>
+              <Label htmlFor="filter-month" className="text-xs">Filter by Month</Label>
               <Input
+                id="filter-month"
                 type="month"
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
@@ -166,12 +169,12 @@ export default function IncomeTrackerPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select 
-                      value={newTransaction.type} 
+                    <Label htmlFor="transaction-type">Type</Label>
+                    <Select
+                      value={newTransaction.type}
                       onValueChange={(value) => setNewTransaction({...newTransaction, type: value as 'income' | 'expense', category: ''})}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="transaction-type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -181,9 +184,12 @@ export default function IncomeTrackerPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Amount</Label>
+                    <Label htmlFor="transaction-amount">Amount</Label>
                     <Input
+                      id="transaction-amount"
                       type="number"
+                      min={0}
+                      step="0.01"
                       placeholder="0.00"
                       value={newTransaction.amount || ''}
                       onChange={(e) => setNewTransaction({...newTransaction, amount: parseFloat(e.target.value) || 0})}
@@ -191,12 +197,12 @@ export default function IncomeTrackerPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select 
-                    value={newTransaction.category} 
+                  <Label htmlFor="transaction-category">Category</Label>
+                  <Select
+                    value={newTransaction.category}
                     onValueChange={(value) => setNewTransaction({...newTransaction, category: value})}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="transaction-category">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -207,16 +213,18 @@ export default function IncomeTrackerPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label htmlFor="transaction-description">Description</Label>
                   <Input
+                    id="transaction-description"
                     placeholder="Brief description..."
                     value={newTransaction.description || ''}
                     onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Date</Label>
+                  <Label htmlFor="transaction-date">Date</Label>
                   <Input
+                    id="transaction-date"
                     type="date"
                     value={newTransaction.date || ''}
                     onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
