@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Users, Copy, Download, CheckSquare, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,8 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToolLayout } from '@/components/ui/tool-layout';
+import { useLocalStorage } from '@/lib/use-local-storage';
 import { copyToClipboard } from '@/lib/clipboard';
 import { downloadFile } from '@/lib/download';
+import { toLocalDateString } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface Task {
@@ -25,40 +27,39 @@ interface Task {
 }
 
 export default function MeetingToTasksPage() {
-  const [meetingNotes, setMeetingNotes] = useState('');
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // A single persisted object (rather than two separate useState + hand-rolled
+  // localStorage effects) avoids a race where the save effect could fire
+  // before the load effect's setState had committed, briefly overwriting
+  // saved data with the initial empty defaults.
+  const [savedState, setSavedState] = useLocalStorage('meetingToTasks', {
+    meetingNotes: '',
+    tasks: [] as Task[],
+  });
+  const { meetingNotes, tasks } = savedState;
+  const setMeetingNotes = (notes: string) => setSavedState((prev) => ({ ...prev, meetingNotes: notes }));
+  const setTasks = (newTasks: Task[]) => setSavedState((prev) => ({ ...prev, tasks: newTasks }));
+
   const [outputFormat, setOutputFormat] = useState('bullet');
   const [isProcessing, setIsProcessing] = useState(false);
+  const extractionTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Load from localStorage so extracted tasks survive a page refresh
   useEffect(() => {
-    const saved = localStorage.getItem('meetingToTasks');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.meetingNotes) setMeetingNotes(parsed.meetingNotes);
-        if (parsed.tasks) setTasks(parsed.tasks);
-      } catch {
-        toast.error('Could not read saved meeting notes; starting fresh');
-      }
-    }
+    return () => {
+      if (extractionTimeoutRef.current) clearTimeout(extractionTimeoutRef.current);
+    };
   }, []);
-
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem('meetingToTasks', JSON.stringify({ meetingNotes, tasks }));
-  }, [meetingNotes, tasks]);
 
   const extractTasks = () => {
     if (!meetingNotes.trim()) {
       toast.error('Please enter meeting notes to process');
       return;
     }
+    if (isProcessing) return;
 
     setIsProcessing(true);
 
     // Simulate AI processing with a more sophisticated task extraction
-    setTimeout(() => {
+    extractionTimeoutRef.current = setTimeout(() => {
       const lines = meetingNotes.split('\n').filter(line => line.trim());
       const extractedTasks: Task[] = [];
 
@@ -91,11 +92,11 @@ export default function MeetingToTasksPage() {
           const today = new Date();
           let deadline = '';
           if (priority === 'high') {
-            deadline = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            deadline = toLocalDateString(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000));
           } else if (priority === 'medium') {
-            deadline = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            deadline = toLocalDateString(new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000));
           } else {
-            deadline = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            deadline = toLocalDateString(new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000));
           }
 
           extractedTasks.push({
@@ -120,7 +121,7 @@ export default function MeetingToTasksPage() {
             description: sentence.trim(),
             priority: 'medium',
             assignee: 'Unassigned',
-            deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            deadline: toLocalDateString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
             completed: false
           });
         });
@@ -361,7 +362,7 @@ Next Steps:
               <strong>Features:</strong> Automatic priority assignment, deadline suggestions, assignee detection, and multiple export formats.
             </p>
             <p>
-              <strong>Tip:</strong> For best results, include clear action words like "need to", "will", "should", or use bullet points for action items.
+              <strong>Tip:</strong> For best results, include clear action words like &quot;need to&quot;, &quot;will&quot;, &quot;should&quot;, or use bullet points for action items.
             </p>
           </CardContent>
         </Card>

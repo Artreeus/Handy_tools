@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ToolLayout } from '@/components/ui/tool-layout';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { generateId } from '@/lib/id';
+import { toLocalDateString } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface TaskEntry {
@@ -39,7 +40,7 @@ export default function TaskMoodLoggerPage() {
   const [entries, setEntries] = useLocalStorage<TaskEntry[]>('taskMoodLogger', []);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newEntry, setNewEntry] = useState<Partial<TaskEntry>>({
-    date: new Date().toISOString().split('T')[0],
+    date: toLocalDateString(),
     task1: '',
     task2: '',
     mood: '😐',
@@ -67,7 +68,7 @@ export default function TaskMoodLoggerPage() {
 
     setEntries([entry, ...entries]);
     setNewEntry({
-      date: new Date().toISOString().split('T')[0],
+      date: toLocalDateString(),
       task1: '',
       task2: '',
       mood: '😐',
@@ -83,14 +84,20 @@ export default function TaskMoodLoggerPage() {
     setNewEntry({...newEntry, mood: emoji, moodScore: score});
   };
 
+  // Entries sorted newest-first by their actual `date` field — insertion
+  // order alone isn't reliable since a user can log a back-dated entry.
+  const getSortedEntries = () => [...entries].sort((a, b) => b.date.localeCompare(a.date));
+
   const getWeeklyStats = () => {
-    const lastWeek = entries.slice(0, 7);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const lastWeek = entries.filter(entry => new Date(entry.date) >= weekAgo);
     if (lastWeek.length === 0) return null;
 
     const avgMood = lastWeek.reduce((sum, entry) => sum + entry.moodScore, 0) / lastWeek.length;
     const avgProductivity = lastWeek.reduce((sum, entry) => sum + entry.productivity, 0) / lastWeek.length;
     const totalTasks = lastWeek.length * 2; // 2 tasks per entry
-    
+
     return {
       avgMood: avgMood.toFixed(1),
       avgProductivity: avgProductivity.toFixed(1),
@@ -100,15 +107,16 @@ export default function TaskMoodLoggerPage() {
   };
 
   const getMoodTrend = () => {
-    if (entries.length < 2) return 'stable';
-    const recent = entries.slice(0, 3).map(e => e.moodScore);
-    const older = entries.slice(3, 6).map(e => e.moodScore);
-    
+    const sorted = getSortedEntries();
+    if (sorted.length < 2) return 'stable';
+    const recent = sorted.slice(0, 3).map(e => e.moodScore);
+    const older = sorted.slice(3, 6).map(e => e.moodScore);
+
     if (recent.length === 0 || older.length === 0) return 'stable';
-    
+
     const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
     const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
-    
+
     if (recentAvg > olderAvg + 0.3) return 'improving';
     if (recentAvg < olderAvg - 0.3) return 'declining';
     return 'stable';
@@ -190,10 +198,11 @@ export default function TaskMoodLoggerPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Productivity Level (1-10)</Label>
+                  <Label htmlFor="productivity-level">Productivity Level (1-10)</Label>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm">1</span>
                     <input
+                      id="productivity-level"
                       type="range"
                       min="1"
                       max="10"
@@ -281,7 +290,7 @@ export default function TaskMoodLoggerPage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>
-              <strong>Be specific:</strong> Instead of "worked on project", try "completed user interface mockups for login page"
+              <strong>Be specific:</strong> Instead of &quot;worked on project&quot;, try &quot;completed user interface mockups for login page&quot;
             </p>
             <p>
               <strong>Track consistently:</strong> Log your day at the same time each evening for best results
