@@ -16,7 +16,6 @@ export default function CaseConverterPage() {
 
   const convertCase = (type: string) => {
     if (!inputText.trim()) {
-      toast.error('Please enter some text to convert');
       return '';
     }
 

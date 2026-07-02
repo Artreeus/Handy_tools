@@ -106,13 +106,21 @@ export default function LoremGeneratorPage() {
     copyToClipboard(generatedText, 'Lorem ipsum text copied to clipboard!', 'Failed to copy text');
   };
 
-  const getMaxCount = () => {
-    switch (type) {
+  const getMaxCountFor = (contentType: string) => {
+    switch (contentType) {
       case 'words': return 200;
       case 'sentences': return 50;
       case 'paragraphs': return 20;
       default: return 10;
     }
+  };
+
+  const getMaxCount = () => getMaxCountFor(type);
+
+  const handleTypeChange = (value: string) => {
+    setType(value);
+    const max = getMaxCountFor(value);
+    setCount((prev) => [Math.min(prev[0], max)]);
   };
 
   const instructions = [
@@ -133,7 +141,7 @@ export default function LoremGeneratorPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Content Type</Label>
-            <Select value={type} onValueChange={setType}>
+            <Select value={type} onValueChange={handleTypeChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -165,7 +173,7 @@ export default function LoremGeneratorPage() {
             onCheckedChange={(checked) => setStartWithLorem(checked === true)}
           />
           <Label htmlFor="start-lorem" className="text-sm">
-            Start with "Lorem ipsum"
+            Start with &quot;Lorem ipsum&quot;
           </Label>
         </div>
 
@@ -183,7 +191,7 @@ export default function LoremGeneratorPage() {
                 Generated Text
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-muted-foreground">
-                    {generatedText.split(' ').length} words, {generatedText.length} chars
+                    {generatedText.trim().split(/\s+/).filter(Boolean).length} words, {generatedText.length} chars
                   </span>
                   <Button variant="ghost" size="sm" onClick={generateLorem}>
                     <RefreshCw className="h-3 w-3" />
@@ -215,10 +223,10 @@ export default function LoremGeneratorPage() {
               Lorem ipsum is placeholder text commonly used in the printing and typesetting industry.
             </p>
             <p>
-              It's derived from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" by Cicero, written in 45 BC.
+              It&apos;s derived from sections 1.10.32 and 1.10.33 of &quot;de Finibus Bonorum et Malorum&quot; by Cicero, written in 45 BC.
             </p>
             <p>
-              The text is scrambled Latin that doesn't distract readers from focusing on the visual elements of a document or typeface.
+              The text is scrambled Latin that doesn&apos;t distract readers from focusing on the visual elements of a document or typeface.
             </p>
           </CardContent>
         </Card>

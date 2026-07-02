@@ -37,12 +37,23 @@ export default function Base64Page() {
       return;
     }
 
+    let binary: string;
     try {
-      const decoded = decodeURIComponent(escape(atob(inputText)));
+      binary = atob(inputText.trim());
+    } catch (err) {
+      toast.error('Invalid Base64 format');
+      return;
+    }
+
+    try {
+      const decoded = decodeURIComponent(escape(binary));
       setOutputText(decoded);
       toast.success('Text decoded successfully!');
     } catch (err) {
-      toast.error('Invalid Base64 format');
+      // Valid Base64, but the decoded bytes aren't valid UTF-8 text — show
+      // the raw bytes instead of misreporting this as invalid Base64.
+      setOutputText(binary);
+      toast.success('Decoded (binary data, not valid UTF-8 text)');
     }
   };
 
@@ -93,7 +104,7 @@ export default function Base64Page() {
       instructions={instructions}
     >
       <div className="space-y-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setOutputText(''); }} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="encode">Encode</TabsTrigger>
             <TabsTrigger value="decode">Decode</TabsTrigger>
@@ -192,7 +203,7 @@ export default function Base64Page() {
               Base64 is a binary-to-text encoding scheme that represents binary data in ASCII format.
             </p>
             <p>
-              It's commonly used for encoding data in email, web pages, and other text-based formats where binary data needs to be transmitted or stored.
+              It&apos;s commonly used for encoding data in email, web pages, and other text-based formats where binary data needs to be transmitted or stored.
             </p>
             <p>
               <strong>Note:</strong> Base64 encoding increases the size of data by approximately 33%.
