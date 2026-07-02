@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Video, Copy, RefreshCw, Hash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +27,13 @@ export default function VideoTitleGeneratorPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [includeEmojis, setIncludeEmojis] = useState(true);
   const [includeNumbers, setIncludeNumbers] = useState(true);
+  const generationTimeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    return () => {
+      if (generationTimeoutRef.current) clearTimeout(generationTimeoutRef.current);
+    };
+  }, []);
 
   // Load from localStorage so generated content survives a page refresh
   useEffect(() => {
@@ -52,11 +59,12 @@ export default function VideoTitleGeneratorPage() {
       toast.error('Please enter a video script or description');
       return;
     }
+    if (isGenerating) return;
 
     setIsGenerating(true);
 
     // Simulate AI processing
-    setTimeout(() => {
+    generationTimeoutRef.current = setTimeout(() => {
       const titles = generateTitles(script, videoType, platform);
       const hashtags = generateHashtags(script, videoType, platform);
       const shortDescription = generateShortDescription(script);
@@ -298,7 +306,7 @@ export default function VideoTitleGeneratorPage() {
                     <Eye className="mr-2 h-4 w-4" />
                     Click-Worthy Titles
                   </span>
-                  <Button variant="ghost" size="sm" onClick={generateContent}>
+                  <Button variant="ghost" size="sm" onClick={generateContent} disabled={isGenerating}>
                     <RefreshCw className="h-3 w-3" />
                   </Button>
                 </CardTitle>

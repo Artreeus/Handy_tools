@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Link, Eye, EyeOff, Copy, Download, Github, Linkedin, Mail, Globe } from 'lucide-react';
+import { User, Link, Eye, EyeOff, Copy, Download, Github, Linkedin, Mail, Globe, RefreshCw } from 'lucide-react';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { generateId } from '@/lib/id';
 import { copyToClipboard } from '@/lib/clipboard';
@@ -155,7 +155,7 @@ export default function PortfolioBuilderPage() {
       return;
     }
 
-    const baseUrl = portfolioData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const baseUrl = portfolioData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'user';
     const randomSuffix = Math.random().toString(36).substring(2, 6);
     const customUrl = `${baseUrl}-${randomSuffix}`;
     
@@ -500,6 +500,9 @@ export default function PortfolioBuilderPage() {
                     <Input value={generatedUrl} readOnly className="font-mono text-sm" />
                     <Button onClick={copyPortfolioUrl} size="sm">
                       <Copy className="h-3 w-3" />
+                    </Button>
+                    <Button onClick={generatePortfolioUrl} size="sm" variant="outline" title="Regenerate URL">
+                      <RefreshCw className="h-3 w-3" />
                     </Button>
                   </div>
                 ) : (

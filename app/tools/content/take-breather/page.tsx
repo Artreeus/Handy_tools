@@ -7,6 +7,30 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToolLayout } from '@/components/ui/tool-layout';
 
+const quotes = [
+  "You're doing fine. Every step forward is progress.",
+  "Take a moment to breathe. You've got this.",
+  "It's okay to pause. Rest is part of the journey.",
+  "You're stronger than you think. Keep going.",
+  "This too shall pass. You're not alone.",
+  "Progress, not perfection. You're on the right path.",
+  "Be kind to yourself. You deserve compassion.",
+  "Every breath is a new beginning.",
+  "You've overcome challenges before. You can do it again.",
+  "Trust the process. You're exactly where you need to be.",
+  "Your efforts matter, even when they feel small.",
+  "Take it one moment at a time. You're doing great.",
+  "Breathe in peace, breathe out stress.",
+  "You are enough, just as you are.",
+  "This moment of rest will give you strength."
+];
+
+const breathingPattern = {
+  inhale: 4000,   // 4 seconds
+  hold: 2000,     // 2 seconds
+  exhale: 6000    // 6 seconds
+};
+
 export default function TakeBreatherPage() {
   const [isBreathing, setIsBreathing] = useState(false);
   const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
@@ -15,74 +39,52 @@ export default function TakeBreatherPage() {
   const [timeLeft, setTimeLeft] = useState(3 * 60);
   const [isMuted, setIsMuted] = useState(false);
 
-  const quotes = [
-    "You're doing fine. Every step forward is progress.",
-    "Take a moment to breathe. You've got this.",
-    "It's okay to pause. Rest is part of the journey.",
-    "You're stronger than you think. Keep going.",
-    "This too shall pass. You're not alone.",
-    "Progress, not perfection. You're on the right path.",
-    "Be kind to yourself. You deserve compassion.",
-    "Every breath is a new beginning.",
-    "You've overcome challenges before. You can do it again.",
-    "Trust the process. You're exactly where you need to be.",
-    "Your efforts matter, even when they feel small.",
-    "Take it one moment at a time. You're doing great.",
-    "Breathe in peace, breathe out stress.",
-    "You are enough, just as you are.",
-    "This moment of rest will give you strength."
-  ];
-
-  const breathingPattern = {
-    inhale: 4000,   // 4 seconds
-    hold: 2000,     // 2 seconds  
-    exhale: 6000    // 6 seconds
-  };
-
   useEffect(() => {
-    let breathingInterval: NodeJS.Timeout;
-    let timerInterval: NodeJS.Timeout;
+    if (!isBreathing) return;
 
-    if (isBreathing) {
-      // Breathing animation cycle
-      const cycleBreathing = () => {
-        setBreathPhase('inhale');
-        setTimeout(() => setBreathPhase('hold'), breathingPattern.inhale);
-        setTimeout(() => setBreathPhase('exhale'), breathingPattern.inhale + breathingPattern.hold);
-      };
+    let phaseHoldTimeout: NodeJS.Timeout;
+    let phaseExhaleTimeout: NodeJS.Timeout;
 
-      cycleBreathing();
-      breathingInterval = setInterval(cycleBreathing, 
-        breathingPattern.inhale + breathingPattern.hold + breathingPattern.exhale
-      );
+    // Breathing animation cycle
+    const cycleBreathing = () => {
+      setBreathPhase('inhale');
+      phaseHoldTimeout = setTimeout(() => setBreathPhase('hold'), breathingPattern.inhale);
+      phaseExhaleTimeout = setTimeout(() => setBreathPhase('exhale'), breathingPattern.inhale + breathingPattern.hold);
+    };
 
-      // Session timer
-      timerInterval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsBreathing(false);
-            return sessionDuration * 60;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    cycleBreathing();
+    const breathingInterval = setInterval(cycleBreathing,
+      breathingPattern.inhale + breathingPattern.hold + breathingPattern.exhale
+    );
+
+    // Change quote every 30 seconds
+    const quoteInterval = setInterval(() => {
+      setCurrentQuote((prev) => (prev + 1) % quotes.length);
+    }, 30000);
+
+    // Session timer
+    const timerInterval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setIsBreathing(false);
+          return sessionDuration * 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => {
-      if (breathingInterval) clearInterval(breathingInterval);
-      if (timerInterval) clearInterval(timerInterval);
+      clearTimeout(phaseHoldTimeout);
+      clearTimeout(phaseExhaleTimeout);
+      clearInterval(breathingInterval);
+      clearInterval(quoteInterval);
+      clearInterval(timerInterval);
     };
   }, [isBreathing, sessionDuration]);
 
   const startBreathing = () => {
     setIsBreathing(true);
     setTimeLeft(sessionDuration * 60);
-    // Change quote every 30 seconds
-    const quoteInterval = setInterval(() => {
-      setCurrentQuote((prev) => (prev + 1) % quotes.length);
-    }, 30000);
-
-    setTimeout(() => clearInterval(quoteInterval), sessionDuration * 60 * 1000);
   };
 
   const stopBreathing = () => {
@@ -221,7 +223,7 @@ export default function TakeBreatherPage() {
                 </h3>
                 <div className="max-w-md mx-auto">
                   <p className="text-lg text-muted-foreground italic leading-relaxed">
-                    "{quotes[currentQuote]}"
+                    &ldquo;{quotes[currentQuote]}&rdquo;
                   </p>
                 </div>
               </div>
@@ -241,7 +243,7 @@ export default function TakeBreatherPage() {
                   Great job! You completed your breathing session.
                 </h3>
                 <p className="text-green-700">
-                  Take a moment to notice how you feel. You're ready to continue with renewed focus.
+                  Take a moment to notice how you feel. You&apos;re ready to continue with renewed focus.
                 </p>
                 <Button onClick={resetSession} className="mt-4">
                   Start Another Session
@@ -293,7 +295,7 @@ export default function TakeBreatherPage() {
                 <strong>Focus on the circle:</strong> Let the visual guide your breathing rhythm naturally.
               </p>
               <p>
-                <strong>Don't force it:</strong> If you miss a breath, simply return to the pattern gently.
+                <strong>Don&apos;t force it:</strong> If you miss a breath, simply return to the pattern gently.
               </p>
             </div>
           </CardContent>
