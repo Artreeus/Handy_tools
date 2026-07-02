@@ -13,13 +13,14 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, Dispatch<S
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(key);
-    if (saved !== null) {
-      try {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved !== null) {
         setValue(JSON.parse(saved));
-      } catch {
-        // Corrupted data; keep the default and let the next save overwrite it.
       }
+    } catch {
+      // Storage unavailable (private browsing, restricted iframe) or corrupted
+      // data; keep the default and let the next save attempt overwrite it.
     }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -27,7 +28,11 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, Dispatch<S
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(key, JSON.stringify(value));
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Storage unavailable or quota exceeded; fall back to in-memory state.
+    }
   }, [key, value, hydrated]);
 
   return [value, setValue];
