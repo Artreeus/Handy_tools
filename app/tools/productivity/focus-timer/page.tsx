@@ -14,6 +14,7 @@ import { StatsGrid } from '@/components/ui/stats-grid';
 import { ToolLayout } from '@/components/ui/tool-layout';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { generateId } from '@/lib/id';
+import { toLocalDateString } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface FocusSession {
@@ -40,64 +41,70 @@ export default function FocusTimerPage() {
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Wall-clock end time rather than a tick counter, so a backgrounded tab
+  // (where setInterval is throttled) doesn't make the session run long.
+  const endTimeRef = useRef<number | null>(null);
 
-  // Timer logic
+  // Timer logic. `startTimer` always sets endTimeRef.current before flipping
+  // isRunning, so this effect only ever runs with it already populated.
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            setShowReflection(true);
-            playNotificationSound();
-            toast.success('Focus session completed! Time for reflection.');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+    if (!isRunning) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
     }
+
+    intervalRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.round(((endTimeRef.current as number) - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        setIsRunning(false);
+        endTimeRef.current = null;
+        setShowReflection(true);
+        playNotificationSound();
+        toast.success('Focus session completed! Time for reflection.');
+      }
+    }, 1000);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, timeLeft]);
+  }, [isRunning]);
 
   const playNotificationSound = () => {
     // Create a simple beep sound using Web Audio API
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
+
     oscillator.frequency.value = 800;
     oscillator.type = 'sine';
-    
+
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-    
+
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
+    oscillator.onended = () => audioContext.close();
   };
 
   const startTimer = () => {
+    endTimeRef.current = Date.now() + timeLeft * 1000;
     setIsRunning(true);
   };
 
   const pauseTimer = () => {
     setIsRunning(false);
+    endTimeRef.current = null;
   };
 
   const resetTimer = () => {
     setIsRunning(false);
+    endTimeRef.current = null;
     setTimeLeft(sessionDuration * 60);
   };
 
@@ -110,7 +117,7 @@ export default function FocusTimerPage() {
   const saveReflection = () => {
     const session: FocusSession = {
       id: generateId(),
-      date: new Date().toISOString().split('T')[0],
+      date: toLocalDateString(),
       duration: sessionDuration,
       accomplished: currentReflection.accomplished,
       distractionLevel: currentReflection.distractionLevel,
@@ -285,10 +292,11 @@ export default function FocusTimerPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>How distracted were you? (1 = Very focused, 5 = Very distracted)</Label>
+                <Label htmlFor="distraction-level">How distracted were you? (1 = Very focused, 5 = Very distracted)</Label>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm">1</span>
                   <input
+                    id="distraction-level"
                     type="range"
                     min="1"
                     max="5"

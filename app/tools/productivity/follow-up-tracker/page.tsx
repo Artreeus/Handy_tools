@@ -16,6 +16,7 @@ import { ToolLayout } from '@/components/ui/tool-layout';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { generateId } from '@/lib/id';
 import { getPriorityColor } from '@/lib/colors';
+import { toLocalDateString } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface FollowUp {
@@ -38,7 +39,7 @@ export default function FollowUpTrackerPage() {
     recipient: '',
     subject: '',
     context: '',
-    sentDate: new Date().toISOString().split('T')[0],
+    sentDate: toLocalDateString(),
     followUpDate: '',
     status: 'pending',
     priority: 'medium',
@@ -70,7 +71,7 @@ export default function FollowUpTrackerPage() {
       recipient: '',
       subject: '',
       context: '',
-      sentDate: new Date().toISOString().split('T')[0],
+      sentDate: toLocalDateString(),
       followUpDate: '',
       status: 'pending',
       priority: 'medium',
@@ -94,7 +95,7 @@ export default function FollowUpTrackerPage() {
     }
 
     const followUpDate = new Date(today.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-    return followUpDate.toISOString().split('T')[0];
+    return toLocalDateString(followUpDate);
   };
 
   const updateFollowUpStatus = (id: string, status: FollowUp['status']) => {
