@@ -35,7 +35,6 @@ export default function HashGeneratorPage() {
   };
 
   const generateHashes = async (data: BufferSource) => {
-    setIsGenerating(true);
     const algorithms = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512'];
     const results: Record<string, string> = {};
 
@@ -55,25 +54,30 @@ export default function HashGeneratorPage() {
   };
 
   const generateFileHashes = async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file first');
+    if (!selectedFile || isGenerating) {
+      if (!selectedFile) toast.error('Please select a file first');
       return;
     }
 
+    setIsGenerating(true);
     const reader = new FileReader();
     reader.onload = async (e) => {
       const buffer = e.target?.result as ArrayBuffer;
       await generateHashes(buffer);
     };
-    reader.onerror = () => toast.error('Failed to read file');
+    reader.onerror = () => {
+      setIsGenerating(false);
+      toast.error('Failed to read file');
+    };
     reader.readAsArrayBuffer(selectedFile);
   };
 
   const generateTextHashes = async () => {
-    if (!textInput.trim()) {
-      toast.error('Please enter some text');
+    if (!textInput.trim() || isGenerating) {
+      if (!textInput.trim()) toast.error('Please enter some text');
       return;
     }
+    setIsGenerating(true);
     await generateHashes(new TextEncoder().encode(textInput));
   };
 
@@ -135,7 +139,7 @@ export default function HashGeneratorPage() {
           
           <TabsContent value="file" className="space-y-4">
             <div className="space-y-2">
-              <Label>Select File</Label>
+              <Label htmlFor="hash-file-input">Select File</Label>
               <div className="flex gap-2">
                 <Button
                   onClick={() => fileInputRef.current?.click()}
@@ -146,6 +150,7 @@ export default function HashGeneratorPage() {
                   {selectedFile ? selectedFile.name : 'Select File'}
                 </Button>
                 <input
+                  id="hash-file-input"
                   ref={fileInputRef}
                   type="file"
                   onChange={handleFileSelect}
@@ -245,7 +250,7 @@ export default function HashGeneratorPage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>
-              <strong>File Integrity:</strong> Verify that files haven't been corrupted or tampered with.
+              <strong>File Integrity:</strong> Verify that files haven&apos;t been corrupted or tampered with.
             </p>
             <p>
               <strong>Password Storage:</strong> Store hashed passwords instead of plain text (with salt).
