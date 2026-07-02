@@ -62,14 +62,14 @@ export default function ImageConverterPage() {
     }
 
     setIsConverting(true);
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        
+
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
@@ -77,13 +77,20 @@ export default function ImageConverterPage() {
         canvas.width = img.width;
         canvas.height = img.height;
 
+        // JPEG has no alpha channel; fill white first so transparent areas
+        // don't render as black after drawImage.
+        if (outputFormat === 'jpg' || outputFormat === 'jpeg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
         // Draw image on canvas
         ctx.drawImage(img, 0, 0);
 
         // Convert to desired format
-        const quality = outputFormat === 'jpeg' ? 0.9 : undefined;
+        const quality = outputFormat === 'jpeg' || outputFormat === 'jpg' ? 0.9 : undefined;
         const mimeType = `image/${outputFormat === 'jpg' ? 'jpeg' : outputFormat}`;
-        
+
         canvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
@@ -96,19 +103,27 @@ export default function ImageConverterPage() {
           }
         }, mimeType, quality);
       };
-      
+      img.onerror = () => {
+        setIsConverting(false);
+        toast.error('Failed to load image — the file may be corrupted');
+      };
+
       img.src = e.target?.result as string;
     };
-    
+    reader.onerror = () => {
+      setIsConverting(false);
+      toast.error('Failed to read image file');
+    };
+
     reader.readAsDataURL(selectedFile);
   };
 
   const downloadImage = () => {
     if (!convertedImage || !selectedFile) return;
-    
+
     const a = document.createElement('a');
     a.href = convertedImage;
-    const originalName = selectedFile.name.split('.')[0];
+    const originalName = selectedFile.name.replace(/\.[^./]+$/, '');
     a.download = `${originalName}.${outputFormat}`;
     document.body.appendChild(a);
     a.click();
@@ -120,7 +135,6 @@ export default function ImageConverterPage() {
     { value: 'png', label: 'PNG', description: 'Lossless compression, supports transparency' },
     { value: 'jpg', label: 'JPEG', description: 'Lossy compression, smaller file size' },
     { value: 'webp', label: 'WebP', description: 'Modern format, excellent compression' },
-    { value: 'bmp', label: 'BMP', description: 'Uncompressed bitmap format' }
   ];
 
   const instructions = [
@@ -141,7 +155,7 @@ export default function ImageConverterPage() {
         
         {/* File Selection */}
         <div className="space-y-2">
-          <Label>Select Image</Label>
+          <Label htmlFor="converter-file-input">Select Image</Label>
           <div className="flex gap-2">
             <Button
               onClick={() => fileInputRef.current?.click()}
@@ -152,6 +166,7 @@ export default function ImageConverterPage() {
               {selectedFile ? selectedFile.name : 'Select Image'}
             </Button>
             <input
+              id="converter-file-input"
               ref={fileInputRef}
               type="file"
               accept="image/*"
@@ -279,15 +294,6 @@ export default function ImageConverterPage() {
                   <li>• Excellent compression</li>
                   <li>• Supports transparency</li>
                   <li>• Not universally supported</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium text-foreground mb-2">BMP</h4>
-                <ul className="text-muted-foreground space-y-1">
-                  <li>• Uncompressed format</li>
-                  <li>• High quality</li>
-                  <li>• Very large file sizes</li>
-                  <li>• Limited web support</li>
                 </ul>
               </div>
             </div>
