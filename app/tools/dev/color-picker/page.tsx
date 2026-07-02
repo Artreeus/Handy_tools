@@ -13,6 +13,7 @@ import { copyToClipboard } from '@/lib/clipboard';
 
 export default function ColorPickerPage() {
   const [selectedColor, setSelectedColor] = useState('#3b82f6');
+  const [hexInput, setHexInput] = useState('#3b82f6');
   const [hue, setHue] = useState([217]);
   const [saturation, setSaturation] = useState([91]);
   const [lightness, setLightness] = useState([60]);
@@ -87,13 +88,15 @@ export default function ColorPickerPage() {
     setSelectedColor(rgbToHex(r, g, b));
   }, [hue, saturation, lightness]);
 
-  // Update color from RGB sliders
-  const updateFromRgb = () => {
-    const [h, s, l] = rgbToHsl(red[0], green[0], blue[0]);
+  // Update color from RGB sliders — takes the new r/g/b directly instead of
+  // reading the red/green/blue state, since a slider's onValueChange fires
+  // before that slider's own setState has committed.
+  const updateFromRgb = (r: number, g: number, b: number) => {
+    const [h, s, l] = rgbToHsl(r, g, b);
     setHue([h]);
     setSaturation([s]);
     setLightness([l]);
-    setSelectedColor(rgbToHex(red[0], green[0], blue[0]));
+    setSelectedColor(rgbToHex(r, g, b));
   };
 
   // Update color from hex input
@@ -101,7 +104,7 @@ export default function ColorPickerPage() {
     if (/^#[0-9A-F]{6}$/i.test(hex)) {
       const [r, g, b] = hexToRgb(hex);
       const [h, s, l] = rgbToHsl(r, g, b);
-      
+
       setRed([r]);
       setGreen([g]);
       setBlue([b]);
@@ -110,6 +113,18 @@ export default function ColorPickerPage() {
       setLightness([l]);
       setSelectedColor(hex);
     }
+  };
+
+  // Keep the hex text field's raw value (which may be an incomplete/invalid
+  // in-progress edit) in sync whenever the color changes from another source
+  // (sliders, palette clicks, the native color swatch).
+  useEffect(() => {
+    setHexInput(selectedColor);
+  }, [selectedColor]);
+
+  const handleHexInputChange = (value: string) => {
+    setHexInput(value);
+    updateFromHex(value);
   };
 
   const copyColor = (format: string, value: string) => {
@@ -164,8 +179,8 @@ export default function ColorPickerPage() {
           <div className="flex gap-2">
             <Input
               id="hex"
-              value={selectedColor}
-              onChange={(e) => updateFromHex(e.target.value)}
+              value={hexInput}
+              onChange={(e) => handleHexInputChange(e.target.value)}
               className="font-mono"
               placeholder="#000000"
             />
@@ -229,7 +244,7 @@ export default function ColorPickerPage() {
                 <Label>Red: {red[0]}</Label>
                 <Slider
                   value={red}
-                  onValueChange={(value) => { setRed(value); updateFromRgb(); }}
+                  onValueChange={(value) => { setRed(value); updateFromRgb(value[0], green[0], blue[0]); }}
                   max={255}
                   min={0}
                   step={1}
@@ -240,7 +255,7 @@ export default function ColorPickerPage() {
                 <Label>Green: {green[0]}</Label>
                 <Slider
                   value={green}
-                  onValueChange={(value) => { setGreen(value); updateFromRgb(); }}
+                  onValueChange={(value) => { setGreen(value); updateFromRgb(red[0], value[0], blue[0]); }}
                   max={255}
                   min={0}
                   step={1}
@@ -251,7 +266,7 @@ export default function ColorPickerPage() {
                 <Label>Blue: {blue[0]}</Label>
                 <Slider
                   value={blue}
-                  onValueChange={(value) => { setBlue(value); updateFromRgb(); }}
+                  onValueChange={(value) => { setBlue(value); updateFromRgb(red[0], green[0], value[0]); }}
                   max={255}
                   min={0}
                   step={1}

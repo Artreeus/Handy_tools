@@ -23,8 +23,16 @@ export default function CSSMinifierPage() {
     }
 
     try {
+      // Protect quoted string literals before minifying so content like
+      // `content: "Hello : World"` doesn't get its internal spacing stripped.
+      const strings: string[] = [];
+      const withPlaceholders = inputCSS.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, (match) => {
+        strings.push(match);
+        return `@@${strings.length - 1}@@`;
+      });
+
       // Basic CSS minification
-      let minified = inputCSS
+      let minified = withPlaceholders
         // Remove comments
         .replace(/\/\*[\s\S]*?\*\//g, '')
         // Remove unnecessary whitespace
@@ -42,6 +50,9 @@ export default function CSSMinifierPage() {
         .replace(/;}/g, '}')
         // Remove leading/trailing whitespace
         .trim();
+
+      // Restore the protected string literals
+      minified = minified.replace(/@@(\d+)@@/g, (_, index) => strings[Number(index)]);
 
       setOutputCSS(minified);
       toast.success('CSS minified successfully!');
